@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import mediapipe as mp
 
 
 def extract_frames(video_path: str, fps: int = 1) -> list[np.ndarray]:
@@ -27,24 +26,17 @@ def extract_frames(video_path: str, fps: int = 1) -> list[np.ndarray]:
 
 
 def crop_faces(frames: list[np.ndarray]) -> list[np.ndarray]:
-    """Detect and crop faces from frames."""
-    mp_fd = mp.solutions.face_detection
-    detector = mp_fd.FaceDetection(model_selection=0, min_detection_confidence=0.5)
+    """Detect and crop faces from frames using OpenCV's Haar cascade."""
+    cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+    detector = cv2.CascadeClassifier(cascade_path)
     faces: list[np.ndarray] = []
     for frame in frames:
-        results = detector.process(frame)
-        if results.detections:
-            h, w, _ = frame.shape
-            for detection in results.detections:
-                box = detection.location_data.relative_bounding_box
-                x1 = int(max(box.xmin * w, 0))
-                y1 = int(max(box.ymin * h, 0))
-                x2 = int(min((box.xmin + box.width) * w, w))
-                y2 = int(min((box.ymin + box.height) * h, h))
-                face = frame[y1:y2, x1:x2]
-                if face.size:
-                    face = cv2.resize(face, (256, 256))
-                    faces.append(face)
-    detector.close()
+        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+        detections = detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+        for (x, y, w, h) in detections:
+            face = frame[y:y + h, x:x + w]
+            if face.size:
+                face = cv2.resize(face, (256, 256))
+                faces.append(face)
     return faces
 
